@@ -1,0 +1,6 @@
+python-dotenv
+langchain
+langchain-community
+langchain-google-vertexai
+google-cloud-aiplatform
+pydantic
