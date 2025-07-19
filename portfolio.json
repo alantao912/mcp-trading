@@ -1,0 +1,35 @@
+{
+  "investor_profile": {
+    "risk_tolerance_level": "moderate",  
+    "time_horizon_years": 10,           
+    "financial_goals": [                  
+      {
+        "goal_name": "retirement",
+        "priority": "high",
+        "target_amount": 1000000,
+        "time_to_reach_goal_years": 25
+      },
+      {
+        "goal_name": "house_down_payment",
+        "priority": "medium",
+        "target_amount": 100000,
+        "time_to_reach_goal_years": 5
+      }
+    ],
+    "comfort_with_short_term_loss": "some_loss_acceptable", 
+    "non_invested_savings_adequate": true, 
+    "reaction_to_market_downturns": "long_term_focus", 
+    "risk_capacity": {                      
+      "stable_income": true,
+      "debt_to_income_ratio": "low",
+      "emergency_fund_coverage_months": 6
+    },
+    "investment_knowledge": "average", 
+    "psychological_attitude": "balanced" 
+  },
+  "asset_allocation_recommendation": {
+    "stocks_percentage": 60,
+    "bonds_percentage": 30,
+    "cash_equivalents_percentage": 10
+  }
+}
