@@ -21,10 +21,17 @@ export default function Home() {
     },
   ]);
   const [inputValue, setInputValue] = useState('');
-  const [selectedServices, setSelectedServices] = useState<string[]>(['Robinhood']);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]); // No default selection
+  const [hasInteracted, setHasInteracted] = useState(false);
   const services = ['Robinhood', 'E*TRADE', 'Fidelity', 'Charles Schwab', 'Webull'];
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showRobinhoodLogin, setShowRobinhoodLogin] = useState(false);
+  const [robinhoodUsername, setRobinhoodUsername] = useState('');
+  const [robinhoodPassword, setRobinhoodPassword] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectError, setConnectError] = useState('');
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -42,6 +49,25 @@ export default function Home() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [dropdownOpen]);
+
+  // Handle Robinhood connect/disconnect on selection change
+  useEffect(() => {
+    if (
+      hasInteracted &&
+      selectedServices.includes('Robinhood') &&
+      !isConnected
+    ) {
+      setShowRobinhoodLogin(true);
+    } else {
+      setShowRobinhoodLogin(false);
+      // Disconnect if Robinhood is deselected and was connected
+      if (!selectedServices.includes('Robinhood') && isConnected) {
+        fetch('http://localhost:8000/api/robinhood/disconnect', { method: 'POST' });
+        setIsConnected(false);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedServices, hasInteracted]);
 
   const handleSendMessage = () => {
     if (inputValue.trim() === '') return;
@@ -75,6 +101,33 @@ export default function Home() {
     }
   };
 
+  const handleRobinhoodLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsConnecting(true);
+    setConnectError('');
+    try {
+      const res = await fetch('http://localhost:8000/api/robinhood/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: robinhoodUsername, password: robinhoodPassword })
+      });
+      const data = await res.json();
+      if (data.error) {
+        setConnectError(data.error);
+        setIsConnected(false);
+      } else {
+        setIsConnected(true);
+        setShowRobinhoodLogin(false);
+        setRobinhoodUsername('');
+        setRobinhoodPassword('');
+      }
+    } catch (err) {
+      setConnectError('Connection failed');
+      setIsConnected(false);
+    }
+    setIsConnecting(false);
+  };
+
   return (
     <div className="relative min-h-screen w-full bg-gradient-to-br from-blue-950 via-slate-900 to-green-900">
       {/* Fixed Header */}
@@ -93,6 +146,39 @@ export default function Home() {
             <span className="mr-2 text-emerald-300">Selected portfolios:</span>
             <span className="truncate">{selectedServices.join(', ') || <span className='text-blue-300'>None</span>}</span>
           </div>
+          {/* Robinhood Login Modal */}
+          {showRobinhoodLogin && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+              <form onSubmit={handleRobinhoodLogin} className="bg-slate-900 border border-emerald-400 rounded-xl p-8 shadow-xl flex flex-col min-w-[320px] max-w-xs">
+                <h2 className="text-xl font-bold text-emerald-200 mb-4">Connect to Robinhood</h2>
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={robinhoodUsername}
+                  onChange={e => setRobinhoodUsername(e.target.value)}
+                  className="mb-3 px-3 py-2 rounded-lg border border-emerald-400 bg-slate-800 text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={robinhoodPassword}
+                  onChange={e => setRobinhoodPassword(e.target.value)}
+                  className="mb-3 px-3 py-2 rounded-lg border border-emerald-400 bg-slate-800 text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  required
+                />
+                {connectError && <div className="text-red-400 mb-2 text-sm">{connectError}</div>}
+                <div className="flex gap-2 mt-2">
+                  <button type="submit" disabled={isConnecting} className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 transition-colors disabled:opacity-50">
+                    {isConnecting ? 'Connecting...' : 'Connect'}
+                  </button>
+                  <button type="button" onClick={() => { setShowRobinhoodLogin(false); setSelectedServices(s => s.filter(x => x !== 'Robinhood')); }} className="flex-1 px-4 py-2 bg-slate-700 text-emerald-100 rounded-lg font-semibold hover:bg-slate-800 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
           <div className="flex flex-row items-end gap-3 w-full">
             {/* Custom Multi-Select Dropdown */}
             <div className="relative shrink-0" ref={dropdownRef} style={{height: '44px'}}>
@@ -112,6 +198,7 @@ export default function Home() {
                         type="checkbox"
                         checked={selectedServices.includes(service)}
                         onChange={() => {
+                          setHasInteracted(true);
                           setSelectedServices((prev) =>
                             prev.includes(service)
                               ? prev.filter((s) => s !== service)
