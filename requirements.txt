@@ -12,3 +12,5 @@ arize-phoenix-otel
 fastapi
 uvicorn
 beautifulsoup4
+langchain_openai
+

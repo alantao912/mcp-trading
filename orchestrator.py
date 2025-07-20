@@ -1,4 +1,5 @@
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import operator
 from typing import TypedDict, List, Annotated
@@ -51,41 +52,46 @@ def fetch_trending_stocks_node(state: GraphState):
     return {"trending_stocks": trending_stocks_report.get('stocks', [])}
 
 def fetch_key_stats_node(state: GraphState):
-    """Fetches key statistics, streams results, and updates state."""
-    print("---FETCHING KEY STATS---")
+    """Fetches key statistics in parallel and updates state."""
+    print("---FETCHING KEY STATS IN PARALLEL---")
     stocks_to_process = state['trending_stocks']
     all_stats = {}
-    
-    # Process stocks sequentially to maintain order and provide immediate feedback
-    for stock in stocks_to_process:
-        ticker = stock['ticker']
-        try:
-            stats = get_key_stats(ticker)
-            all_stats[ticker] = stats
-            print(f"Completed key stats for {ticker}")
-        except Exception as e:
-            print(f"Error fetching stats for {ticker}: {e}")
-            all_stats[ticker] = {"error": str(e)}
-    
+    # Use a thread pool to fetch stats in parallel
+    with ThreadPoolExecutor(max_workers=len(stocks_to_process)) as executor:
+        future_to_ticker = {executor.submit(get_key_stats, stock['ticker']): stock['ticker'] for stock in stocks_to_process}
+        
+        for future in as_completed(future_to_ticker):
+            ticker = future_to_ticker[future]
+            try:
+                stats = future.result()
+                all_stats[ticker] = stats
+                print(f"Completed key stats for {ticker}")
+            except Exception as e:
+                print(f"Error fetching stats for {ticker}: {e}")
+                all_stats[ticker] = {"error": str(e)}
+                
     return {"key_stats": all_stats}
 
 def fetch_news_node(state: GraphState):
-    """Fetches news, streams results, and updates state."""
-    print("---FETCHING NEWS---")
+    """Fetches news articles in parallel and updates state."""
+    print("---FETCHING NEWS IN PARALLEL---")
     stocks_to_process = state['trending_stocks']
     all_news = {}
-    
-    # Process stocks sequentially to maintain order and provide immediate feedback
-    for stock in stocks_to_process:
-        ticker = stock['ticker']
-        try:
-            news_items = get_news_for_stock(ticker)
-            all_news[ticker] = news_items
-            print(f"Completed news for {ticker}")
-        except Exception as e:
-            print(f"Error fetching news for {ticker}: {e}")
-            all_news[ticker] = {"error": str(e)}
-    
+
+    # Use a thread pool to fetch news in parallel
+    with ThreadPoolExecutor(max_workers=len(stocks_to_process)) as executor:
+        future_to_ticker = {executor.submit(get_news_for_stock, stock['ticker']): stock['ticker'] for stock in stocks_to_process}
+        
+        for future in as_completed(future_to_ticker):
+            ticker = future_to_ticker[future]
+            try:
+                news = future.result()
+                all_news[ticker] = news
+                print(f"Completed news for {ticker}")
+            except Exception as e:
+                print(f"Error fetching news for {ticker}: {e}")
+                all_news[ticker] = {"error": str(e)}
+
     return {"news": all_news}
 
 def generate_summary_node(state: GraphState):
