@@ -3,7 +3,9 @@ import json
 from google import genai
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 from dotenv import load_dotenv
-from langchain_google_vertexai import VertexAI
+from langchain.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from models.stock_report import TrendingStocksReport
@@ -20,16 +22,19 @@ def get_client():
     """Initializes and returns the GenAI client, checking for project ID."""
     if not PROJECT_ID:
         raise ValueError("Error: GOOGLE_CLOUD_PROJECT environment variable not set.")
-    print(f"Using Google Cloud Project: {PROJECT_ID} and Location: {LOCATION}")
+    # print(f"Using Google Cloud Project: {PROJECT_ID} and Location: {LOCATION}")
     return genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
 
-def find_trending_stocks_data():
-    """Uses Google Search grounding to find data on trending stocks."""
-    print("--- [Step 1] Finding trending stocks data via Google Search ---")
+def find_trending_stocks_data(user_query: str):
+    """Uses Google Search grounding to find data on trending stocks based on a user query."""
+    print(f"--- [Step 1] Finding trending stocks data for query: '{user_query}' ---")
     client = get_client()
     search_tool = Tool(google_search=GoogleSearch())
     
-    prompt = """What are the top 10 trending stocks in the US market right now? ALWAYS USE SEARCH TOOL to find the data. Include the company name, ticker symbol, and a brief reason for why each is trending. Just give me what you have. it not important"""
+    prompt = f"""Based on the user's query: '{user_query}', what are the top 5 trending stocks in the US market right now? 
+I'm looking for a list of the top 5 companies that are currently generating a lot of buzz relevant to the query. 
+Please provide the stock ticker, the company name, and a brief (one-sentence) reason for why each stock is trending. 
+If the query is not specific, provide general trending stocks."""
     
     response = client.models.generate_content(
         model=MODEL_ID,
@@ -42,27 +47,44 @@ def find_trending_stocks_data():
     return response.text
 
 def generate_structured_report(raw_data: str):
-    """Uses LangChain and VertexAI to parse raw data into a structured report."""
-    print("--- [Step 2] Generating structured report from raw data ---")
-    llm = VertexAI(model_name=MODEL_ID, project=PROJECT_ID, location=LOCATION)
+    """Uses LangChain and OpenRouter to parse raw data into a structured report."""
+    llm = ChatOpenAI(
+        model="google/gemini-flash-1.5",
+        temperature=0.0,
+        openai_api_key=os.environ.get("OPENROUTER_API_KEY"),
+        openai_api_base="https://openrouter.ai/api/v1",
+    )
     parser = JsonOutputParser(pydantic_object=TrendingStocksReport)
-    
     prompt = PromptTemplate(
-        template="Parse the following raw text to extract the top 10 trending stocks. Format the output as a JSON object that follows the provided schema.\n{format_instructions}\n\nRaw Text:\n{raw_text}\n",
+        template="""You are a financial data processing agent.\n
+        Your task is to extract key stock information from a raw text blob and format it into a structured JSON report.
+
+        The output should be a JSON object that strictly follows this Pydantic model:
+        {format_instructions}
+
+        Here is the raw data:
+        {raw_text}
+        """,
         input_variables=["raw_text"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
-    
     chain = prompt | llm | parser
     structured_response = chain.invoke({"raw_text": raw_data})
-    
-    print("--- [Step 2] Structured report generated ---")
     return structured_response
+
+def get_trending_stocks(user_query: str):
+    """Fetches, processes, and returns a structured report of trending stocks based on a user query."""
+    print(f"--- [AGENT] Fetching trending stocks for query: {user_query} ---")
+    raw_data = find_trending_stocks_data(user_query)
+    print("--- [AGENT] Generating structured report for trending stocks ---")
+    structured_report = generate_structured_report(raw_data)
+    return structured_report
 
 # --- Main Execution ---
 if __name__ == '__main__':
     try:
         # Step 1: Get raw data using Google Search
+        trending_stocks_report = get_trending_stocks()
         raw_trending_data = find_trending_stocks_data()
         
         # Step 2: Convert raw data into a structured report
