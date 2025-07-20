@@ -31,5 +31,27 @@
     "stocks_percentage": 60,
     "bonds_percentage": 30,
     "cash_equivalents_percentage": 10
-  }
+  },
+  "investments":[
+    {
+      "name": "NVDA",
+      "qty":1000,
+      "cost": 83
+    },
+    {
+      "name": "LLY",
+      "qty":200,
+      "cost": 750
+    },
+    {
+      "name": "QS",
+      "qty":300,
+      "cost": 50
+    },
+    {
+      "DIS": "LLY",
+      "qty":520,
+      "cost": 150
+    }
+]
 }
