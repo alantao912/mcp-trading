@@ -8,7 +8,11 @@ from models.final_report import FinalReport
 # Load environment variables
 load_dotenv()
 
-def generate_summary(user_query: str, trending_stocks: list, key_stats: dict, news: dict):
+def generate_summary(user_query: str, trending_stocks: list, key_stats: dict, news: dict, portfolio_holdings: dict):
+    """
+    Generates a final summary and analysis based on all gathered data and a user query.
+    This function now streams the response chunk by chunk.
+    """
     """
     Generates a final summary and analysis based on all gathered data and a user query.
     """
@@ -46,6 +50,9 @@ You are an expert financial analyst AI. Your task is to provide a comprehensive 
 3. **Recent News**:
 {news}
 
+4. **Current Portfolio Holdings**:
+{portfolio_holdings}
+
 **Instructions**:
 
 1.  **Market Overview**: Begin with a high-level summary of the current market sentiment based on the list of trending stocks. Are they mostly tech, finance, etc.? What does this suggest about the current market focus? Format this as markdown with proper headings and bullet points.
@@ -56,29 +63,31 @@ You are an expert financial analyst AI. Your task is to provide a comprehensive 
     - Use *italics* for emphasis on sentiment or trends
     - Include clear sections for fundamentals, technicals, and news sentiment
 
-3.  **Actionable Recommendation**: Based on your analysis and the user's query, provide a specific recommendation for each stock (e.g., 'buy', 'sell', 'hold', 'monitor'). Format recommendations using markdown:
+3.  **Portfolio Analysis**: Analyze the user's current portfolio in the context of the trending stocks and market overview. Identify any overlaps, risks, or opportunities. For example, is the portfolio well-diversified? Is it heavily exposed to a particular sector that is currently volatile? Provide insights on how the trending stocks could impact the user's holdings.
+
+4.  **Actionable Recommendation**: Based on your analysis and the user's query, provide a specific recommendation for each stock (e.g., 'buy', 'sell', 'hold', 'monitor'). Format recommendations using markdown:
     - Use **bold** for the recommendation type
     - Use bullet points for reasoning
     - Include risk assessment where relevant
 
-4.  **Final Summary**: Conclude with a final summary that directly answers the user's query, using markdown formatting:
+5.  **Final Summary**: Conclude with a final summary that directly answers the user's query, using markdown formatting:
     - Use headings (##) for different sections
     - Use bullet points for key takeaways
     - Use **bold** for important conclusions
 
-5.  **Markdown Formatting**: Use proper markdown syntax throughout:
+6.  **Markdown Formatting**: Use proper markdown syntax throughout:
     - Headers: ## for main sections, ### for subsections
     - Lists: - for bullet points, 1. for numbered lists
     - Emphasis: **bold** for important points, *italic* for emphasis
     - Code: `backticks` for stock tickers or specific values
 
-6.  **Format**: Ensure your entire output is a single, valid JSON object that conforms to the provided schema. All text content should be properly formatted markdown.
+7.  **Format**: Ensure your entire output is a single, valid JSON object that conforms to the provided schema. All text content should be properly formatted markdown.
 
-7. **Final Output**: The final output must be ONLY the JSON object. Do not include any other text or markdown formatting, such as ```json ... ```, outside of the JSON structure.
+8. **Final Output**: The final output must be ONLY the JSON object. Do not include any other text or markdown formatting, such as ```json ... ```, outside of the JSON structure.
 
 {format_instructions}
 """,
-        input_variables=["user_query", "trending_stocks", "key_stats", "news"],
+        input_variables=["user_query", "trending_stocks", "key_stats", "news", "portfolio_holdings"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
 
@@ -90,7 +99,8 @@ You are an expert financial analyst AI. Your task is to provide a comprehensive 
         "user_query": user_query,
         "trending_stocks": trending_stocks,
         "key_stats": key_stats,
-        "news": news
+        "news": news,
+        "portfolio_holdings": portfolio_holdings
     })
 
     print("--- [AGENT] Final summary generated ---")
