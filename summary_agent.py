@@ -74,6 +74,8 @@ You are an expert financial analyst AI. Your task is to provide a comprehensive 
 
 6.  **Format**: Ensure your entire output is a single, valid JSON object that conforms to the provided schema. All text content should be properly formatted markdown.
 
+7. **Final Output**: The final output must be ONLY the JSON object. Do not include any other text or markdown formatting, such as ```json ... ```, outside of the JSON structure.
+
 {format_instructions}
 """,
         input_variables=["user_query", "trending_stocks", "key_stats", "news"],
