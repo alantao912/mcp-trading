@@ -4,7 +4,7 @@ import argparse
 from google import genai
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 from dotenv import load_dotenv
-from langchain_google_vertexai import VertexAI
+from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from models.key_stats import KeyStats
@@ -21,7 +21,7 @@ def get_client():
     """Initializes and returns the GenAI client, checking for project ID."""
     if not PROJECT_ID:
         raise ValueError("Error: GOOGLE_CLOUD_PROJECT environment variable not set.")
-    print(f"Using Google Cloud Project: {PROJECT_ID} and Location: {LOCATION}")
+    # print(f"Using Google Cloud Project: {PROJECT_ID} and Location: {LOCATION}")
     return genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
 
 def get_key_stats_data(stock_symbol: str):
@@ -43,13 +43,25 @@ def get_key_stats_data(stock_symbol: str):
     return response.text
 
 def generate_structured_report(raw_data: str):
-    """Uses LangChain and VertexAI to parse raw data into a structured report."""
-    print("--- [Step 2] Generating structured report from raw data ---")
-    llm = VertexAI(model_name=MODEL_ID, project=PROJECT_ID, location=LOCATION)
+    """Uses LangChain and OpenRouter to parse raw data into a structured report."""
+    llm = ChatOpenAI(
+        model="google/gemini-flash-1.5",
+        temperature=0.0,
+        openai_api_key=os.environ.get("OPENROUTER_API_KEY"),
+        openai_api_base="https://openrouter.ai/api/v1",
+    )
     parser = JsonOutputParser(pydantic_object=KeyStats)
     
     prompt = PromptTemplate(
-        template="Parse the following raw text to extract the key stock statistics. Format the output as a JSON object that follows the provided schema.\n{format_instructions}\n\nRaw Text:\n{raw_text}\n",
+        template="""You are a financial data processing agent.\n
+        Your task is to extract key statistics from a raw text blob and format it into a structured JSON report.
+
+        The output should be a JSON object that strictly follows this Pydantic model:
+        {format_instructions}
+
+        Here is the raw data:
+        {raw_text}
+        """,
         input_variables=["raw_text"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
@@ -59,6 +71,14 @@ def generate_structured_report(raw_data: str):
     
     print("--- [Step 2] Structured report generated ---")
     return structured_response
+
+def get_key_stats(stock_symbol: str):
+    """Fetches and processes key stats for a given stock symbol."""
+    print(f"--- [AGENT] Fetching key stats for {stock_symbol} ---")
+    raw_data = get_key_stats_data(stock_symbol)
+    print(f"--- [AGENT] Generating structured report for {stock_symbol} ---")
+    structured_report = generate_structured_report(raw_data)
+    return structured_report
 
 # --- Main Execution ---
 if __name__ == '__main__':

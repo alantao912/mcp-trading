@@ -11,3 +11,4 @@ google-generativeai
 arize-phoenix-otel
 fastapi
 uvicorn
+beautifulsoup4

@@ -24,8 +24,9 @@ async def read_root(request: Request):
 
 @app.get("/stream-analysis")
 async def stream_analysis(request: Request):
+    user_query = request.query_params.get("query", "Provide a general summary of the market and the trending stocks.")
     async def event_stream():
-        async for event in run_workflow_streaming():
+        async for event in run_workflow_streaming(user_query):
             yield f"data: {json.dumps(event)}\n\n"
             await asyncio.sleep(0.1) # Prevents overwhelming the client
 
