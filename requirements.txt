@@ -9,3 +9,5 @@ langgraph
 openinference-instrumentation-langchain
 google-generativeai
 arize-phoenix-otel
+fastapi
+uvicorn

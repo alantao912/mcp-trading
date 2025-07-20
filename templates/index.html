@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analysis Stream</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-1/3 lg:w-1/4 bg-white p-6 border-r border-gray-200 overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Analysis Progress</h2>
+            <ul id="progress-tracker" class="space-y-6"></ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="w-2/3 lg:w-3/4 p-6 md:p-8 overflow-y-auto">
+            <header class="text-center mb-8">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Real-Time Stock Analysis</h1>
+                <p class="text-md md:text-lg text-gray-600">Click the button to start the analysis and see live results.</p>
+            </header>
+
+            <div class="text-center mb-8">
+                <button id="start-analysis" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
+                    Start Analysis
+                </button>
+            </div>
+
+            <!-- Progress Bar and Status -->
+            <div id="progress-container" class="w-full bg-gray-200 rounded-full h-2.5 mb-4 hidden">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            <div id="status-text" class="text-center text-gray-600 mb-8"></div>
+
+            <!-- Accordion container -->
+            <div id="accordion-container" class="bg-white rounded-lg shadow-md overflow-hidden"></div>
+        </main>
+    </div>
+
+    <script>
+        const startButton = document.getElementById('start-analysis');
+        const accordionContainer = document.getElementById('accordion-container');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const statusText = document.getElementById('status-text');
+        const progressTracker = document.getElementById('progress-tracker');
+
+        let totalStocks = 0;
+        let processedStocks = 0;
+
+        const trackerSteps = {
+            start: { text: 'Analysis Initiated' },
+            fetch_trending: { text: 'Fetching Trending Stocks' },
+            process_stocks: { text: 'Processing Key Statistics' },
+            complete: { text: 'Analysis Complete' }
+        };
+
+        function initializeTracker() {
+            progressTracker.innerHTML = '';
+            Object.entries(trackerSteps).forEach(([key, value]) => {
+                const item = document.createElement('li');
+                item.id = `tracker-${key}`;
+                item.className = 'flex items-center text-gray-500';
+                item.innerHTML = `
+                    <div class="status-icon border-2 border-gray-400 rounded-full h-5 w-5 flex items-center justify-center mr-4 flex-shrink-0">
+                        <div class="dot h-2 w-2 rounded-full"></div>
+                    </div>
+                    <span>${value.text}</span>
+                `;
+                progressTracker.appendChild(item);
+            });
+        }
+
+        function updateTracker(stepId, status) {
+            const item = document.getElementById(`tracker-${stepId}`);
+            if (!item) return;
+
+            const icon = item.querySelector('.status-icon');
+            const dot = item.querySelector('.dot');
+            item.classList.remove('text-gray-500', 'text-blue-600', 'text-green-600');
+            icon.classList.remove('border-gray-400', 'border-blue-600', 'border-green-600', 'animate-spin');
+            dot.classList.remove('bg-blue-600', 'bg-green-600');
+
+            switch (status) {
+                case 'in-progress':
+                    item.classList.add('text-blue-600');
+                    icon.classList.add('border-blue-600', 'animate-spin');
+                    break;
+                case 'completed':
+                    item.classList.add('text-green-600', 'font-semibold');
+                    icon.classList.add('border-green-600');
+                    dot.classList.add('bg-green-600');
+                    break;
+            }
+        }
+
+        startButton.addEventListener('click', () => {
+            accordionContainer.innerHTML = '';
+            statusText.textContent = '';
+            progressContainer.classList.add('hidden');
+            progressBar.style.width = '0%';
+            totalStocks = 0;
+            processedStocks = 0;
+            initializeTracker();
+
+            const eventSource = new EventSource('http://localhost:8000/stream-analysis');
+
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+
+                switch (data.event) {
+                    case 'start':
+                        updateTracker('start', 'completed');
+                        updateTracker('fetch_trending', 'in-progress');
+                        statusText.textContent = data.message;
+                        progressContainer.classList.remove('hidden');
+                        break;
+
+                    case 'trending_stocks':
+                        updateTracker('fetch_trending', 'completed');
+                        updateTracker('process_stocks', 'in-progress');
+                        totalStocks = data.data.length;
+                        statusText.textContent = `Found ${totalStocks} stocks. Fetching details...`;
+                        data.data.forEach(stock => {
+                            accordionContainer.appendChild(createAccordionItem(stock));
+                        });
+                        break;
+
+                    case 'key_stat':
+                        processedStocks++;
+                        const percentage = totalStocks > 0 ? (processedStocks / totalStocks) * 100 : 0;
+                        progressBar.style.width = `${percentage}%`;
+                        statusText.textContent = `Processing... (${processedStocks}/${totalStocks}) - ${data.ticker}`;
+                        updateAccordionItem(data.ticker, data.data);
+                        break;
+
+                    case 'end':
+                        updateTracker('process_stocks', 'completed');
+                        updateTracker('complete', 'completed');
+                        statusText.textContent = data.message;
+                        progressBar.style.width = '100%';
+                        eventSource.close();
+                        break;
+                }
+            };
+
+            eventSource.onerror = function(err) {
+                console.error('EventSource failed:', err);
+                statusText.textContent = 'Error connecting to the server.';
+                eventSource.close();
+            };
+        });
+
+        function createAccordionItem(stock) {
+            const item = document.createElement('div');
+            item.id = `stock-${stock.ticker}`;
+            item.className = 'border-b border-gray-200 last:border-b-0';
+            item.innerHTML = `
+                <details>
+                    <summary class="p-4 cursor-pointer flex justify-between items-center w-full hover:bg-gray-50 transition-colors">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-800">${stock.name} (${stock.ticker})</h2>
+                            <p class="text-sm text-gray-500">${stock.reason_for_trending}</p>
+                        </div>
+                        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6 ml-4"></div>
+                    </summary>
+                    <div class="p-4 bg-gray-50 border-t border-gray-200">
+                        <!-- Key stats will be populated here -->
+                    </div>
+                </details>
+            `;
+            return item;
+        }
+
+        function updateAccordionItem(ticker, stats) {
+            const item = document.getElementById(`stock-${ticker}`);
+            if (item) {
+                const detailsElement = item.querySelector('details');
+                const contentDiv = item.querySelector('.p-4.bg-gray-50');
+                const loader = item.querySelector('.loader');
+
+                if (loader) loader.style.display = 'none';
+
+                let statsHtml = '<ul class="grid grid-cols-1 sm:grid-cols-2 gap-4">';
+                for (const [key, value] of Object.entries(stats)) {
+                    if (value !== null && value !== undefined) {
+                        statsHtml += `<li class="flex flex-col p-2 bg-white rounded-md shadow-sm"><span class="font-semibold text-gray-600 text-xs capitalize">${key.replace(/_/g, ' ')}</span><span class="text-gray-900 font-medium">${value}</span></li>`;
+                    }
+                }
+                statsHtml += '</ul>';
+                contentDiv.innerHTML = statsHtml;
+
+                if (!detailsElement.open) {
+                    detailsElement.open = true;
+                }
+            }
+        }
+
+        // Initialize on page load
+        initializeTracker();
+    </script>
+</body>
+</html>

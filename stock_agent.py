@@ -29,7 +29,7 @@ def find_trending_stocks_data():
     client = get_client()
     search_tool = Tool(google_search=GoogleSearch())
     
-    prompt = """What are the top 10 trending stocks in the US market right now? ALWAYS USE SEARCH TOOL to find the data. Include the company name, ticker symbol, and a brief reason for why each is trending. Just give me what you have. it not important"""
+    prompt = """What are the top 5 trending stocks in the US market right now? I'm looking for a list of the top 5 companies that are currently generating a lot of buzz. Please provide the stock ticker, the company name, and a brief (one-sentence) reason for why each stock is trending. Just give me what you have. it not important"""
     
     response = client.models.generate_content(
         model=MODEL_ID,
