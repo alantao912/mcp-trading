@@ -21,7 +21,7 @@ def get_client():
     if not PROJECT_ID:
         raise ValueError("Error: GOOGLE_CLOUD_PROJECT environment variable not set.")
     print(f"Using Google Cloud Project: {PROJECT_ID} and Location: {LOCATION}")
-    return genai.Client(project=PROJECT_ID, location=LOCATION)
+    return genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
 
 def find_trending_stocks_data():
     """Uses Google Search grounding to find data on trending stocks."""
