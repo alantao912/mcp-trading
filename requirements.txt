@@ -4,3 +4,8 @@ langchain-community
 langchain-google-vertexai
 google-cloud-aiplatform
 pydantic
+arize-phoenix
+langgraph
+openinference-instrumentation-langchain
+google-generativeai
+arize-phoenix-otel
