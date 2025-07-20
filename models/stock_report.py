@@ -10,3 +10,7 @@ class Stock(BaseModel):
 class TrendingStocksReport(BaseModel):
     """The root model for the trending stocks report."""
     stocks: List[Stock] = Field(description="A list of the top 10 trending stocks.")
+
+def from_json_string(json_string: str) -> TrendingStocksReport:
+    """Construct TrendingStocksReport from a JSON string."""
+    return TrendingStocksReport.model_validate_json(json_string)
