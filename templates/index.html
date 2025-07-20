@@ -22,10 +22,23 @@
                 <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Real-Time Stock Analysis</h1>
                 <p class="text-md md:text-lg text-gray-600">Enter your query below and start the analysis to get a tailored report.</p>
             </header>
-
-            <div class="mb-8">
-                <label for="user-query" class="block mb-2 text-sm font-medium text-gray-900">Your Query:</label>
-                <textarea id="user-query" rows="3" class="block p-2.5 w-full text-sm text-gray-900 bg-white rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Which of these stocks are best for a long-term investment?"></textarea>
+            
+            <div class="flex items-center">
+                <div class="w-auto flex flex-col items-center justify-start ml-3 mr-3 mb-3 mt-0">
+                    <h1 class="m-2"> Select your portfolio: </h1>
+                    <select onchange="handleSelection(this.value)" class="p-2">
+                        <option value="Robinhood">Robinhood</option>
+                        <option value="Webull">Webull</option>
+                        <option value="Wealthfront">Wealthfront</option>
+                        <option value="Fidelity">Fidelity</option>
+                        <option value="Charles Schwab">Charles Schwab</option>
+                        <option value="etrade">E*Trade</option>
+                    </select>
+                </div>
+                <div class="mb-8 flex-1">
+                    <label for="user-query" class="block mb-2 text-sm font-medium text-gray-900">Your Query:</label>
+                    <textarea id="user-query" rows="3" class="block p-2.5 w-full text-sm text-gray-900 bg-white rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Which of these stocks are best for a long-term investment?"></textarea>
+                </div>
             </div>
 
             <div class="text-center mb-8">
@@ -77,6 +90,91 @@
             generate_summary: { text: 'Generating Final Report' },
             complete: { text: 'Analysis Complete' }
         };
+
+        function handleSelection(value) {
+            const modalOverlay = document.createElement('div');
+            modalOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            `;
+            
+            // Create modal content
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                max-width: 400px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            `;
+            
+            modalContent.innerHTML = `
+                <h2 style="margin-bottom: 15px;">Portfolio Selected</h2>
+                <p>You selected: <strong>${value}</strong></p>
+                <div style="margin: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: center; margin: 3px;">
+                        <p> Username: </p>
+                        <input type="text" style="border-style: solid; border-width: 2px; margin: 2px; padding: 2px;"/>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: center; margin: 3px;">
+                        <p style="margin-right: 4px;"> Password:  </p>
+                        <input type="password" style="border-style: solid; border-width: 2px; margin: 2px; padding: 2px;"/>
+                    </div>
+                </div>
+                <button onclick="closeModal()" style="
+                    margin-top: 15px;
+                    padding: 8px 16px;
+                    background-color: #3b82f6;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                ">Login</button>
+            `;
+            
+            modalOverlay.appendChild(modalContent);
+            document.body.appendChild(modalOverlay);
+            
+            // Store reference for closing
+            window.currentModal = modalOverlay;
+            
+            // Close on overlay click
+            modalOverlay.addEventListener('click', function(e) {
+                if (e.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+        }
+
+        function closeModal() {
+            if (window.currentModal) {
+                document.body.removeChild(window.currentModal);
+                window.currentModal = null;
+            }
+        }
+
+        // Handle dropdown selection
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectElement = document.querySelector('select');
+            if (selectElement) {
+                selectElement.addEventListener('change', function(e) {
+                    if (e.target.value) {
+                        handleSelection(e.target.value);
+                    }
+                });
+                handleSelection(selectElement.value);
+            }
+        });
 
         function initializeTracker() {
             progressTracker.innerHTML = '';

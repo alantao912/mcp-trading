@@ -35,7 +35,7 @@ def find_trending_stocks_data(user_query: str):
 I'm looking for a list of the top 5 companies that are currently generating a lot of buzz relevant to the query. 
 Please provide the stock ticker, the company name, and a brief (one-sentence) reason for why each stock is trending. 
 If the query is not specific, provide general trending stocks."""
-    
+
     response = client.models.generate_content(
         model=MODEL_ID,
         contents=prompt,

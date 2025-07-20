@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from orchestrator import run_workflow_streaming
+from predibase import Predibase, GRPOConfig, RewardFunctionsConfig, RewardFunction
 
 app = FastAPI()
 
@@ -31,6 +32,57 @@ async def stream_analysis(request: Request):
             await asyncio.sleep(0.1) # Prevents overwhelming the client
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+@app.get("/grpo")
+async def grpo(request: Request):
+    def format_reward_func(prompt: str, completion: str, example: dict[str, str]) -> float:
+        ground_truth = {
+            "PLTR": "HOLD",
+            "TSLA": "SELL",
+            "NVDA": "HOLD",
+            "INTL": "SELL",
+            "GOOG": "BUY",
+            "AAPL": "BUY",
+            "MSFT": "HOLD",
+            "NFLX": "BUY",
+            "IVZ": "SELL"
+        }
+        recs = json.load(completion)['detailed_analysis']
+        correct = 0
+        for rec in recs:
+            ticker = rec['ticker']
+            if ticker not in ground_truth:
+                print('Unrecognized ticker {}'.format(ticker))
+                continue
+            action_text = rec['recommendation'].lower()
+            action = None
+            if "sell" in action_text:
+                action = "SELL"
+            elif "HOLD" in action_text:
+                action = "HOLD"
+            elif "BUY" in action_text:
+                action = "BUY"
+            if action == ground_truth[ticker]:
+                correct += 1
+        # Number of correct actions divided by total actions
+        return correct / len(recs)
+    
+    pb = Predibase(api_token="pb__JZ3ifN2WrCF6jXSRG6ACQ")
+    adapter = pb.adapters.create(
+        config = GRPOConfig(
+            base_model="qwen2-5-7b-instruct",
+            reward_fns=RewardFunctionsConfig(
+                functions={
+                    "reward": format_reward_func
+                }
+            ),
+            train_steps=200
+        ),
+        dataset="sample_dataset",
+        description="Countdown!",
+        repo=None
+    )
+    return {"Hi": "Tao"}
 
 if __name__ == "__main__":
     import uvicorn
