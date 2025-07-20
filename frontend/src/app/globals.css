@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a1a2f; /* deep finance blue */
+  --foreground: #e6eaf3; /* light text */
+  --accent: #1ecb81;     /* finance green */
+  --accent-dark: #0e7c47; /* dark green */
+  --header-bg: #14213d;  /* dark blue for header */
+  --header-border: #1ecb81; /* green accent border */
+  --bubble-user: #1ecb81; /* green for user */
+  --bubble-bot: #1a2233; /* dark blue for bot */
+  --font-sans: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+  --font-mono: var(--font-geist-mono, monospace);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a1a2f;
+    --foreground: #e6eaf3;
+    --accent: #1ecb81;
+    --accent-dark: #0e7c47;
+    --header-bg: #14213d;
+    --header-border: #1ecb81;
+    --bubble-user: #1ecb81;
+    --bubble-bot: #1a2233;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
