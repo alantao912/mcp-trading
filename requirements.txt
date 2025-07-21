@@ -5,11 +5,11 @@ langchain-google-vertexai
 google-cloud-aiplatform
 pydantic
 arize-phoenix
-langgraph==0.5.3
+langgraph
 openinference-instrumentation-langchain
-google-generativeai==0.8.5
+google-generativeai
 arize-phoenix-otel
-fastapi==0.116.1
+fastapi
 uvicorn
 beautifulsoup4
 langchain_openai
