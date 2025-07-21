@@ -18,6 +18,7 @@ from stock_agent import get_trending_stocks
 from keystats_agent import get_key_stats
 from news_agent import get_news_for_stock
 from summary_agent import generate_summary
+from portfolio_agent import get_portfolio_holdings
 
 # Load environment variables
 load_dotenv()
@@ -38,6 +39,7 @@ class GraphState(TypedDict):
     key_stats: dict
     news: dict
     final_report: dict
+    portfolio_holdings: dict
     messages: Annotated[list, operator.add]
 
 # 2. Define the nodes for the graph
@@ -52,13 +54,20 @@ def fetch_trending_stocks_node(state: GraphState):
     return {"trending_stocks": trending_stocks_report.get('stocks', [])}
 
 def fetch_key_stats_node(state: GraphState):
-    """Fetches key statistics in parallel and updates state."""
+    """Fetches key statistics in parallel for both trending and portfolio stocks."""
     print("---FETCHING KEY STATS IN PARALLEL---")
-    stocks_to_process = state['trending_stocks']
+    
+    trending_tickers = {stock['ticker'] for stock in state.get('trending_stocks', [])}
+    portfolio_tickers = {holding['name'] for holding in state.get('portfolio_holdings', {}).get('investments', [])}
+    
+    all_tickers = list(trending_tickers | portfolio_tickers)
     all_stats = {}
-    # Use a thread pool to fetch stats in parallel
-    with ThreadPoolExecutor(max_workers=len(stocks_to_process)) as executor:
-        future_to_ticker = {executor.submit(get_key_stats, stock['ticker']): stock['ticker'] for stock in stocks_to_process}
+
+    if not all_tickers:
+        return {"key_stats": {}}
+
+    with ThreadPoolExecutor(max_workers=len(all_tickers)) as executor:
+        future_to_ticker = {executor.submit(get_key_stats, ticker): ticker for ticker in all_tickers}
         
         for future in as_completed(future_to_ticker):
             ticker = future_to_ticker[future]
@@ -73,14 +82,20 @@ def fetch_key_stats_node(state: GraphState):
     return {"key_stats": all_stats}
 
 def fetch_news_node(state: GraphState):
-    """Fetches news articles in parallel and updates state."""
+    """Fetches news articles in parallel for both trending and portfolio stocks."""
     print("---FETCHING NEWS IN PARALLEL---")
-    stocks_to_process = state['trending_stocks']
+    
+    trending_tickers = {stock['ticker'] for stock in state.get('trending_stocks', [])}
+    portfolio_tickers = {holding['name'] for holding in state.get('portfolio_holdings', {}).get('investments', [])}
+    
+    all_tickers = list(trending_tickers | portfolio_tickers)
     all_news = {}
 
-    # Use a thread pool to fetch news in parallel
-    with ThreadPoolExecutor(max_workers=len(stocks_to_process)) as executor:
-        future_to_ticker = {executor.submit(get_news_for_stock, stock['ticker']): stock['ticker'] for stock in stocks_to_process}
+    if not all_tickers:
+        return {"news": {}}
+
+    with ThreadPoolExecutor(max_workers=len(all_tickers)) as executor:
+        future_to_ticker = {executor.submit(get_news_for_stock, ticker): ticker for ticker in all_tickers}
         
         for future in as_completed(future_to_ticker):
             ticker = future_to_ticker[future]
@@ -94,6 +109,12 @@ def fetch_news_node(state: GraphState):
 
     return {"news": all_news}
 
+def fetch_portfolio_holdings_node(state: GraphState):
+    """Fetches portfolio holdings and updates the state."""
+    print("---FETCHING PORTFOLIO HOLDINGS---")
+    portfolio_holdings = get_portfolio_holdings()
+    return {"portfolio_holdings": portfolio_holdings}
+
 def generate_summary_node(state: GraphState):
     """Generates the final summary report and streams it."""
     print("---GENERATING FINAL SUMMARY---")
@@ -102,7 +123,8 @@ def generate_summary_node(state: GraphState):
         user_query=state['user_query'],
         trending_stocks=state['trending_stocks'],
         key_stats=state['key_stats'],
-        news=state['news']
+        news=state['news'],
+        portfolio_holdings=state['portfolio_holdings']
     )
     
     return {"final_report": report}
@@ -112,12 +134,14 @@ workflow = StateGraph(GraphState)
 workflow.add_node("fetch_trending_stocks", fetch_trending_stocks_node)
 workflow.add_node("fetch_key_stats", fetch_key_stats_node)
 workflow.add_node("fetch_news", fetch_news_node)
+workflow.add_node("fetch_portfolio_holdings", fetch_portfolio_holdings_node)
 workflow.add_node("generate_summary", generate_summary_node)
 
 workflow.add_edge(START, "fetch_trending_stocks")
+workflow.add_edge(START, "fetch_portfolio_holdings")
 workflow.add_edge("fetch_trending_stocks", "fetch_key_stats")
 workflow.add_edge("fetch_trending_stocks", "fetch_news")
-workflow.add_edge(["fetch_key_stats", "fetch_news"], "generate_summary")
+workflow.add_edge(["fetch_key_stats", "fetch_news", "fetch_portfolio_holdings"], "generate_summary")
 workflow.add_edge("generate_summary", END)
 
 app = workflow.compile()
@@ -125,7 +149,7 @@ app = workflow.compile()
 # 4. Define the streaming workflow to run the graph
 async def run_workflow_streaming(user_query: str):
     """Runs the LangGraph workflow and streams events for the frontend."""
-    yield {"event": "start", "message": "Workflow initiated..."}
+    yield {"event": "start", "message": "Starting Analysis..."}
     yield {"event": "update_tracker", "step": "start", "status": "completed"}
 
     # Initial state with user query
@@ -165,6 +189,13 @@ async def run_workflow_streaming(user_query: str):
                                 "data": news_items
                             }
                 
+                elif node_name == "fetch_portfolio_holdings":
+                    if "portfolio_holdings" in node_output:
+                        yield {
+                            "event": "portfolio_holdings",
+                            "data": node_output["portfolio_holdings"]
+                        }
+                
                 elif node_name == "generate_summary":
                     if "final_report" in node_output:
                         yield {
@@ -173,7 +204,7 @@ async def run_workflow_streaming(user_query: str):
                         }
         
         # Stream end event
-        yield {"event": "end", "message": "Workflow completed."}
+        yield {"event": "end", "message": "Analysis complete."}
         
     except Exception as e:
         print(f"Error in graph execution: {e}")

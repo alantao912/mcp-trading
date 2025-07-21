@@ -49,7 +49,7 @@
       "cost": 50
     },
     {
-      "DIS": "LLY",
+      "name": "DIS",
       "qty":520,
       "cost": 150
     }
