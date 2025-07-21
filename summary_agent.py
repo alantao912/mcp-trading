@@ -11,7 +11,6 @@ load_dotenv()
 def generate_summary(user_query: str, trending_stocks: list, key_stats: dict, news: dict, portfolio_holdings: dict):
     """
     Generates a final summary and analysis based on all gathered data and a user query.
-    This function now streams the response chunk by chunk.
     """
     """
     Generates a final summary and analysis based on all gathered data and a user query.

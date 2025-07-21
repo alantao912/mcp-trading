@@ -149,7 +149,7 @@ app = workflow.compile()
 # 4. Define the streaming workflow to run the graph
 async def run_workflow_streaming(user_query: str):
     """Runs the LangGraph workflow and streams events for the frontend."""
-    yield {"event": "start", "message": "Workflow initiated..."}
+    yield {"event": "start", "message": "Starting Analysis..."}
     yield {"event": "update_tracker", "step": "start", "status": "completed"}
 
     # Initial state with user query
@@ -204,7 +204,7 @@ async def run_workflow_streaming(user_query: str):
                         }
         
         # Stream end event
-        yield {"event": "end", "message": "Workflow completed."}
+        yield {"event": "end", "message": "Analysis complete."}
         
     except Exception as e:
         print(f"Error in graph execution: {e}")
